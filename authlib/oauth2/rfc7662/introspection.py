@@ -45,8 +45,9 @@ class IntrospectionEndpoint(TokenEndpoint):
             return token
 
     def check_params(self, request, client):
-        params = request.form
-        if "token" not in params:
+        # RFC 6749 §3.1: an empty value is treated as an omitted parameter, so
+        # "token=" is reported as a missing required parameter.
+        if not request.form.get("token"):
             raise InvalidRequestError()
 
     def create_endpoint_response(self, request):

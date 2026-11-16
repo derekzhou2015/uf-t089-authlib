@@ -132,7 +132,10 @@ class OpenIDImplicitGrant(LegacyMixin, ImplicitGrant):
         validate_requested_sub(self, self, redirect_uri)
         resolve_authentication(self, redirect_uri)
         params = self.create_granted_params(grant_user)
-        if state := self.request.payload.state:
+        # RFC 6749 §4.1.2: echo the state when it was present. Per §3.1 an
+        # empty value has been normalized to None, i.e. the parameter is
+        # treated as omitted and is not echoed.
+        if (state := self.request.payload.state) is not None:
             params.append(("state", state))
 
         if has_multiple_response_types(self.server):

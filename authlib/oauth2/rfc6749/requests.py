@@ -4,6 +4,37 @@ from .errors import InsecureTransportError
 from .util import normalize_response_type
 
 
+def normalize_empty_values(data):
+    """Return a copy of a request parameter mapping where an empty string is
+    replaced with ``None``.
+
+    Per RFC 6749 §3.1, parameters sent without a value MUST be treated as if
+    they were omitted from the request. A framework parses ``state=`` as an
+    empty string rather than as a missing parameter; normalizing it to ``None``
+    gives every grant and extension a single "omitted" representation,
+    independently of the transport (query string, form body, request object).
+
+    Only strings are normalized. A JSON ``null`` is already ``None``, and the
+    other JSON types keep their value so that the request object type checks
+    keep rejecting them.
+    """
+    return {
+        key: (None if isinstance(value, str) and value == "" else value)
+        for key, value in data.items()
+    }
+
+
+def normalize_empty_value_lists(datalist):
+    """Apply the RFC 6749 §3.1 empty-value rule to the repeated values of a
+    request: each empty string becomes ``None``. The keys and the number of
+    values are preserved, so a repeated parameter is still detected.
+    """
+    return {
+        key: [None if isinstance(value, str) and value == "" else value for value in values]
+        for key, values in datalist.items()
+    }
+
+
 class OAuth2Payload:
     @property
     def data(self):
@@ -47,8 +78,10 @@ class OAuth2Payload:
 
 class BasicOAuth2Payload(OAuth2Payload):
     def __init__(self, payload):
-        self._data = payload
-        self._datalist = {key: [value] for key, value in payload.items()}
+        # RFC 6749 §3.1: an empty value is treated as an omitted parameter, in
+        # the request object path as in the query and form paths.
+        self._data = normalize_empty_values(payload)
+        self._datalist = {key: [value] for key, value in self._data.items()}
 
     @property
     def data(self):

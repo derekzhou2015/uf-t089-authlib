@@ -45,7 +45,9 @@ class RefreshTokenGrant(BaseGrant, TokenEndpointMixin):
 
     def _validate_request_token(self, client):
         refresh_token = self.request.form.get("refresh_token")
-        if refresh_token is None:
+        # RFC 6749 §3.1: an empty value is treated as an omitted, here
+        # required, parameter.
+        if not refresh_token:
             raise InvalidRequestError("Missing 'refresh_token' in request.")
 
         token = self.authenticate_refresh_token(refresh_token)

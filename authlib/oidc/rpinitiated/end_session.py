@@ -166,7 +166,9 @@ class EndSessionEndpoint(Endpoint):
             # rpinitiated §3: "If the post_logout_redirect_uri value is provided
             # and the preceding conditions are met, the OP MUST include the
             # state value if the RP's initial Logout Request included state."
-            if state:
+            # RFC 6749 §3.1: an empty state is treated as omitted, so it is
+            # not echoed.
+            if state is not None:
                 redirect_uri = add_params_to_uri(redirect_uri, {"state": state})
 
         return EndSessionRequest(

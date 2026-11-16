@@ -94,9 +94,10 @@ class ResourceOwnerPasswordCredentialsGrant(BaseGrant, TokenEndpointMixin):
             )
 
         params = self.request.form
-        if "username" not in params:
+        # RFC 6749 §3.1: an empty value is treated as an omitted parameter.
+        if not params.get("username"):
             raise InvalidRequestError("Missing 'username' in request.")
-        if "password" not in params:
+        if not params.get("password"):
             raise InvalidRequestError("Missing 'password' in request.")
 
         log.debug("Authenticate user of %r", params["username"])

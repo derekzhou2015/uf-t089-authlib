@@ -108,6 +108,20 @@ def test_invalid_refresh_token(test_client):
     assert resp["error"] == "invalid_grant"
 
 
+def test_empty_refresh_token_is_missing(test_client):
+    """RFC 6749 §3.1: an empty refresh_token is treated as omitted, so it is
+    rejected as a missing parameter rather than as an invalid grant."""
+    headers = create_basic_header("client-id", "client-secret")
+    rv = test_client.post(
+        "/oauth/token",
+        data={"grant_type": "refresh_token", "refresh_token": ""},
+        headers=headers,
+    )
+    resp = json.loads(rv.data)
+    assert resp["error"] == "invalid_request"
+    assert "Missing" in resp["error_description"]
+
+
 def test_invalid_scope(test_client, token):
     headers = create_basic_header("client-id", "client-secret")
     rv = test_client.post(

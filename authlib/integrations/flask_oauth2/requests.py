@@ -7,22 +7,26 @@ from authlib.oauth2.rfc6749 import JsonPayload
 from authlib.oauth2.rfc6749 import JsonRequest
 from authlib.oauth2.rfc6749 import OAuth2Payload
 from authlib.oauth2.rfc6749 import OAuth2Request
+from authlib.oauth2.rfc6749.requests import normalize_empty_value_lists
+from authlib.oauth2.rfc6749.requests import normalize_empty_values
 
 
 class FlaskOAuth2Payload(OAuth2Payload):
     def __init__(self, request: Request):
         self._request = request
 
-    @property
+    @cached_property
     def data(self):
-        return self._request.values
+        # RFC 6749 §3.1: a parameter sent without a value is treated as if it
+        # were omitted, so normalize its empty string to None.
+        return normalize_empty_values(self._request.values)
 
     @cached_property
     def datalist(self):
         values = defaultdict(list)
-        for k in self.data:
-            values[k].extend(self.data.getlist(k))
-        return values
+        for k in self._request.values:
+            values[k].extend(self._request.values.getlist(k))
+        return normalize_empty_value_lists(values)
 
 
 class FlaskOAuth2Request(OAuth2Request):

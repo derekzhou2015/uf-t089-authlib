@@ -215,7 +215,10 @@ class ImplicitGrant(BaseGrant, AuthorizationEndpointMixin):
 
         self.save_token(token)
         params = [(k, token[k]) for k in token]
-        if self.request.payload.state:
+        # RFC 6749 §4.2.2: echo the state when it was present. Per §3.1 an
+        # empty value has been normalized to None, i.e. the parameter is
+        # treated as omitted and is not echoed.
+        if self.request.payload.state is not None:
             params.append(("state", self.request.payload.state))
 
         return AuthorizationResponse(

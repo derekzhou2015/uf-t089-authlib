@@ -412,6 +412,13 @@ def _validate_parameter_types(claims, parameters, state):
             continue
 
         value = claims[name]
+        # RFC 6749 §3.1: a parameter sent without a value is treated as if it
+        # were omitted. An empty string is therefore not an invalid type, and
+        # the payload normalization turns it into None before this check runs
+        # a second time, so None is treated as omitted too. This matches the
+        # query and form transport paths.
+        if value == "" or value is None:
+            continue
         if isinstance(value, bool) or not isinstance(value, expected_type):
             raise InvalidRequestObjectError(
                 description=f"The '{name}' parameter has an invalid type.",

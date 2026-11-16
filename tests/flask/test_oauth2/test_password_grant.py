@@ -151,6 +151,26 @@ def test_invalid_request(test_client, server):
     assert resp["error"] == "invalid_request"
 
 
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"grant_type": "password", "username": "", "password": "ok"},
+        {"grant_type": "password", "username": "foo", "password": ""},
+        {"grant_type": "password", "username": "", "password": ""},
+    ],
+)
+def test_empty_username_or_password_is_missing(test_client, server, data):
+    """RFC 6749 §3.1: an empty value is treated as omitted, so an empty
+    username or password is rejected as a missing required parameter."""
+    register_password_grant(server)
+    headers = create_basic_header("client-id", "client-secret")
+
+    rv = test_client.post("/oauth/token", data=data, headers=headers)
+    resp = json.loads(rv.data)
+    assert resp["error"] == "invalid_request"
+    assert "Missing" in resp["error_description"]
+
+
 def test_invalid_grant_type(test_client, server, db, client):
     register_password_grant(server)
     client.set_client_metadata(

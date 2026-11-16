@@ -10,6 +10,8 @@ from authlib.oauth2.rfc6749 import JsonPayload
 from authlib.oauth2.rfc6749 import JsonRequest
 from authlib.oauth2.rfc6749 import OAuth2Payload
 from authlib.oauth2.rfc6749 import OAuth2Request
+from authlib.oauth2.rfc6749.requests import normalize_empty_value_lists
+from authlib.oauth2.rfc6749.requests import normalize_empty_values
 
 _URLENCODED = "application/x-www-form-urlencoded"
 
@@ -37,7 +39,9 @@ class DjangoOAuth2Payload(OAuth2Payload):
         data = {}
         data.update(self._request.GET.dict())
         data.update(self._request.POST.dict())
-        return data
+        # RFC 6749 §3.1: a parameter sent without a value is treated as if it
+        # were omitted, so normalize its empty string to None.
+        return normalize_empty_values(data)
 
     @cached_property
     def datalist(self):
@@ -46,7 +50,7 @@ class DjangoOAuth2Payload(OAuth2Payload):
             values[k].extend(self._request.GET.getlist(k))
         for k in self._request.POST:
             values[k].extend(self._request.POST.getlist(k))
-        return values
+        return normalize_empty_value_lists(values)
 
 
 class DjangoOAuth2Request(OAuth2Request):

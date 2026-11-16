@@ -154,7 +154,10 @@ class AuthorizationCodeGrant(BaseGrant, AuthorizationEndpointMixin, TokenEndpoin
         self.save_authorization_code(code, self.request)
 
         params = [("code", code)]
-        if self.request.payload.state:
+        # RFC 6749 §4.1.2: echo the state when it was present. Per §3.1 an
+        # empty value has been normalized to None, i.e. the parameter is
+        # treated as omitted and is not echoed.
+        if self.request.payload.state is not None:
             params.append(("state", self.request.payload.state))
 
         return AuthorizationResponse(
@@ -212,7 +215,9 @@ class AuthorizationCodeGrant(BaseGrant, AuthorizationEndpointMixin, TokenEndpoin
             )
 
         code = self.request.form.get("code")
-        if code is None:
+        # RFC 6749 §3.1: an empty value is treated as an omitted, here
+        # required, parameter.
+        if not code:
             raise InvalidRequestError("Missing 'code' in request.")
 
         # ensure that the authorization code was issued to the authenticated

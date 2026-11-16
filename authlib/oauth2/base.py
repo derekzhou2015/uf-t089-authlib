@@ -51,7 +51,10 @@ class OAuth2Error(AuthlibHTTPError):
     def get_body(self):
         """Get a list of body."""
         error = super().get_body()
-        if self.state:
+        # RFC 6749 §4.1.2.1: echo the state when it was present in the
+        # authorization request. Per §3.1 an empty value is treated as an
+        # omitted parameter and normalized to None, so it is not echoed.
+        if self.state is not None:
             error.append(("state", self.state))
         return error
 
