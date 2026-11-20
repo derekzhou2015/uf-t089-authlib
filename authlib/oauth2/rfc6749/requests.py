@@ -2,6 +2,7 @@ from collections import defaultdict
 
 from .errors import InsecureTransportError
 from .util import normalize_response_type
+from .util import omit_empty_params
 
 
 class OAuth2Payload:
@@ -47,8 +48,10 @@ class OAuth2Payload:
 
 class BasicOAuth2Payload(OAuth2Payload):
     def __init__(self, payload):
-        self._data = payload
-        self._datalist = {key: [value] for key, value in payload.items()}
+        # Per RFC 6749 §3.1 and §3.2, a parameter sent without a value is
+        # treated as if it were omitted from the request.
+        self._data = omit_empty_params(payload)
+        self._datalist = {key: [value] for key, value in self._data.items()}
 
     @property
     def data(self):

@@ -10,6 +10,7 @@ from authlib.oauth2.rfc6749 import JsonPayload
 from authlib.oauth2.rfc6749 import JsonRequest
 from authlib.oauth2.rfc6749 import OAuth2Payload
 from authlib.oauth2.rfc6749 import OAuth2Request
+from authlib.oauth2.rfc6749.util import omit_empty_params
 
 _URLENCODED = "application/x-www-form-urlencoded"
 
@@ -37,15 +38,18 @@ class DjangoOAuth2Payload(OAuth2Payload):
         data = {}
         data.update(self._request.GET.dict())
         data.update(self._request.POST.dict())
-        return data
+        # Per RFC 6749 §3.1 and §3.2, a parameter sent without a value is
+        # treated as if it were omitted from the request.
+        return omit_empty_params(data)
 
     @cached_property
     def datalist(self):
         values = defaultdict(list)
-        for k in self._request.GET:
-            values[k].extend(self._request.GET.getlist(k))
-        for k in self._request.POST:
-            values[k].extend(self._request.POST.getlist(k))
+        for source in (self._request.GET, self._request.POST):
+            for k in source:
+                non_empty = [v for v in source.getlist(k) if v != ""]
+                if non_empty:
+                    values[k].extend(non_empty)
         return values
 
 

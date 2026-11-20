@@ -13,15 +13,19 @@ class FlaskOAuth2Payload(OAuth2Payload):
     def __init__(self, request: Request):
         self._request = request
 
-    @property
+    @cached_property
     def data(self):
-        return self._request.values
+        return {k: values[0] for k, values in self.datalist.items()}
 
     @cached_property
     def datalist(self):
+        # Per RFC 6749 §3.1 and §3.2, a parameter sent without a value is
+        # treated as if it were omitted from the request.
         values = defaultdict(list)
-        for k in self.data:
-            values[k].extend(self.data.getlist(k))
+        for k in self._request.values:
+            non_empty = [v for v in self._request.values.getlist(k) if v != ""]
+            if non_empty:
+                values[k].extend(non_empty)
         return values
 
 

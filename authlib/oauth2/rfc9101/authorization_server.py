@@ -23,6 +23,27 @@ class _RequestObjectPayload(BasicOAuth2Payload):
     """The authorization request parameters of a request object."""
 
 
+def _raw_parameter_names(request: OAuth2Request) -> set:
+    """The names of the parameters of the raw request, empty ones included.
+
+    The payload of the request drops parameters sent without a value; the
+    raw query string and form body of the framework request still carry
+    them. Sources that the request does not expose are ignored.
+    """
+    names = set()
+    for attr in ("args", "form"):
+        try:
+            source = getattr(request, attr)
+        except (AttributeError, NotImplementedError):
+            continue
+        if source:
+            try:
+                names.update(source.keys())
+            except AttributeError:
+                pass
+    return names
+
+
 class JWTAuthenticationRequest:
     """Authorization server extension implementing the support
     for JWT secured authentication request, as defined in :rfc:`RFC9101 <9101>`.
@@ -150,18 +171,37 @@ class JWTAuthenticationRequest:
         request: OAuth2Request,
         client: ClientMixin,
     ) -> bool:
-        if "request" in request.payload.data and "request_uri" in request.payload.data:
+        data = request.payload.data
+        has_request = "request" in data
+        has_request_uri = "request_uri" in data
+
+        # The payload drops parameters sent without a value, per RFC 6749
+        # §3.1. But "request" and "request_uri" select the JWT secured
+        # authorization request mechanism: treating an empty one as omitted
+        # would silently downgrade the request to a plain OAuth 2.0 request.
+        # Their presence, even without a value, is an error instead.
+        present = _raw_parameter_names(request)
+        empty_request = not has_request and "request" in present
+        empty_request_uri = not has_request_uri and "request_uri" in present
+
+        if (has_request or empty_request) and (has_request_uri or empty_request_uri):
             raise InvalidRequestError(
                 "The 'request' and 'request_uri' parameters are mutually exclusive.",
                 state=request.payload.state,
             )
 
-        if "request" in request.payload.data:
+        if empty_request_uri:
+            raise InvalidRequestUriError(state=request.payload.state)
+
+        if empty_request:
+            raise InvalidRequestObjectError(state=request.payload.state)
+
+        if has_request:
             if not self.support_request:
                 raise RequestNotSupportedError(state=request.payload.state)
             return True
 
-        if "request_uri" in request.payload.data:
+        if has_request_uri:
             if not self.support_request_uri:
                 raise RequestUriNotSupportedError(state=request.payload.state)
             return True

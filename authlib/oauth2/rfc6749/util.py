@@ -23,6 +23,23 @@ def scope_to_list(scope):
     return scope.strip().split()
 
 
+def omit_empty_params(params):
+    """Return the mapping without the parameters whose value is empty.
+
+    Per :rfc:`6749#section-3.1` and :rfc:`6749#section-3.2`, parameters sent
+    without a value MUST be treated as if they were omitted from the request.
+    A parameter that appears with no value (``key=`` or a bare ``key`` in an
+    ``application/x-www-form-urlencoded`` message) is therefore dropped here,
+    so that every OAuth 2.0 entry point sees it exactly as if it had never
+    been sent. Only the empty string is dropped: ``0``, ``False`` and other
+    falsy but meaningful values are kept.
+
+    :param params: a mapping of parameter names to values
+    :return: a dict without the empty-valued parameters
+    """
+    return {k: v for k, v in params.items() if v != ""}
+
+
 def normalize_response_type(response_type):
     """Sort the values of a response type, so it can be compared as a string.
 

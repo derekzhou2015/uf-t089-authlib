@@ -51,9 +51,13 @@ def prepare_grant_uri(
         params.append(("state", state))
 
     for k, value in kwargs.items():
-        if value is not None:
+        # An empty value would be sent as a bare "key=", which the receiver
+        # treats as omitted per RFC 6749 §3.1 and §3.2. Do not send it.
+        if value is not None and value != "":
             if isinstance(value, (list, tuple)):
-                params.extend((to_unicode(k), v) for v in value if v is not None)
+                params.extend(
+                    (to_unicode(k), v) for v in value if v is not None and v != ""
+                )
             else:
                 params.append((to_unicode(k), value))
 
@@ -89,7 +93,9 @@ def prepare_token_request(grant_type, body="", redirect_uri=None, **kwargs):
     if "scope" in kwargs:
         kwargs["scope"] = list_to_scope(kwargs["scope"])
 
-    if grant_type == "authorization_code" and kwargs.get("code") is None:
+    if grant_type == "authorization_code" and not kwargs.get("code"):
+        # An empty "code" is no code at all: per RFC 6749 §3.2, a parameter
+        # sent without a value is treated as omitted.
         raise MissingCodeException()
 
     for k, value in kwargs.items():
@@ -143,7 +149,9 @@ def parse_authorization_code_response(uri, state=None):
 
     """
     query = urlparse.urlparse(uri).query
-    params = dict(urlparse.parse_qsl(query))
+    # Per RFC 6749 §3.1, parameters sent without a value are treated as if
+    # they were omitted: a blank "code=" or "state=" is not a value.
+    params = dict(urlparse.parse_qsl(query, keep_blank_values=False))
 
     if "code" not in params:
         raise MissingCodeException()
@@ -197,7 +205,10 @@ def parse_implicit_response(uri, state=None):
                 &state=xyz&token_type=example&expires_in=3600
     """
     fragment = urlparse.urlparse(uri).fragment
-    params = dict(urlparse.parse_qsl(fragment, keep_blank_values=True))
+    # Per RFC 6749 §3.1, parameters sent without a value are treated as if
+    # they were omitted: a blank "access_token=" is a missing token, not an
+    # empty one.
+    params = dict(urlparse.parse_qsl(fragment, keep_blank_values=False))
 
     if "access_token" not in params:
         raise MissingTokenException()
